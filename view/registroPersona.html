@@ -1,0 +1,156 @@
+<style>   
+  .icono {
+    width: 32px;
+    height: 32px;
+    max-width: 60%;
+  }
+
+  .texto-icono {
+    font-size: 10px;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  @media screen and (min-width: 768px) {
+    .icono {
+      width: 48px;
+      height: 48px;
+    }
+
+    .texto-icono {
+      font-size: 14px;
+      font-family: 'Poppins', sans-serif;
+    }
+  }
+</style>
+
+<div>
+  <div class="container-fluid">
+    <h3></h3>
+
+    <form id="formPersona" onsubmit="nsRegistroPersona.procesarFormulario(event,this)">
+      <div class="container-fluid p-0 m-0">
+        <div class="row justify-content-center">
+          <div class="col-12 col-sm-12 col-md-12 col-lg-6 col-xl-5">
+
+            <div class="card shadow border-0">
+
+              <!-- HEADER -->
+              <div class="card-header bg-dark text-white d-flex align-items-center" style="height:3rem">
+                <h5 class="card-title mb-0 fw-bold">Registro de Persona</h5>
+              </div>
+
+              <!-- BODY -->
+              <div class="card-body">
+
+                <div class="mb-3">
+                  <label class="form-label">Código</label>
+                  <input type="number" class="form-control" id="codigo" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Cédula</label>
+                  <input type="number" class="form-control" id="cedula" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Nombre completo</label>
+                  <input type="text" class="form-control" id="nombre" required>
+                </div>
+              </div>
+
+              <!-- FOOTER -->
+              <div class="card-footer d-flex gap-2">
+                <button type="submit" class="btn btn-dark flex-fill" id="btnGuardar">
+                  GUARDAR REGISTRO
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+var nsRegistroPersona = (function () {
+
+  /***********************************************/
+  const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtYnh5ZmtldG11em9jZXBsbHZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODE4NjUsImV4cCI6MjA3MzM1Nzg2NX0.oh9zssayvCPp-jcCohQugTx28Ds2Ts-y7Tbp-pgX1XE";
+
+  /***********************************************/
+  // Evitar submit con ENTER en inputs numéricos
+  document.querySelectorAll('input[type=number]').forEach(node =>
+    node.addEventListener('keypress', e => {
+      if (e.keyCode === 13) e.preventDefault();
+    })
+  );
+
+  /***********************************************/
+  async function procesarFormulario(event, form) {
+    event.preventDefault();
+
+    const btn = document.getElementById("btnGuardar");
+    btn.disabled = true;
+    btn.classList.add("disabled");
+
+    try {
+      const codigo = document.getElementById("codigo").value.trim();
+      const cedula = document.getElementById("cedula").value.trim();
+      const nombre = document.getElementById("nombre").value.trim();
+
+      if (!codigo || !cedula || !nombre) {
+        throw new Error("Todos los campos son obligatorios");
+      }
+
+      // 📦 FormData → Edge Function
+      const formData = new FormData();
+      formData.append("codigo", codigo);
+      formData.append("cedula", cedula);
+      formData.append("nombre", nombre);
+
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/registrar_empleado`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "apikey": SUPABASE_ANON_KEY
+          },
+          body: formData
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al registrar persona");
+      }
+
+      alertSMS(
+        `Empleado ${result.empleado.nombre.toUpperCase()} registrado correctamente ✅`
+      );
+
+      form.reset();
+
+    } catch (err) {
+      console.error(err);
+      alertSMS(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove("disabled");
+    }
+  }
+
+  /***********************************************/
+  return {
+    procesarFormulario
+  };
+
+})();
+</script>
