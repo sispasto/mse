@@ -29,6 +29,23 @@ class BienvenidaComponent extends HTMLElement {
       //this.shadowRoot.appendChild(template.content.cloneNode(true));Encapsula todo independiente todo css y js por eso lo comente
       this.innerHTML = '';
       this.appendChild(template.content.cloneNode(true));
+      
+      // Detectar dispositivo y cambiar imagen
+      const img = this.querySelector('#imgBienvenida');
+
+      if (img) {
+        const actualizarImagen = () => {
+          if (window.innerWidth <= 768) {
+            img.src = "/mse/assets/bienvenida_android.png";
+          } else {
+            img.src = "/mse/assets/bienvenida.png";
+          }
+        };
+
+        actualizarImagen();
+        window.addEventListener("resize", actualizarImagen);
+      }//fin cambio de imagen
+      
       // Ahora insertamos la versión
       if (this.versionApp) {
         const versionLabel = this.querySelector('#version-label');
