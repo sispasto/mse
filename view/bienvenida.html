@@ -14,7 +14,21 @@
               </div>
             </div>
             <div class="col">
-              <span class="login100-form-avatar"><img src="/mse/assets/bienvenida.png" alt="AVATAR"></span>
+              <!--<span class="login100-form-avatar"><img src="/mse/assets/bienvenida.png" alt="AVATAR"></span>-->
+              <span class="login100-form-avatar">
+                <picture>
+                  <!-- Imagen para móviles -->
+                  <source 
+                    srcset="/mse/assets/bienvenida_android.png" 
+                    media="(max-width: 768px)">
+                    
+                  <!-- Imagen para PC -->
+                  <img 
+                    src="/mse/assets/bienvenida.png" 
+                    alt="Bienvenida Multiservicios"
+                    class="img-fluid">
+                </picture>
+              </span>
             </div>
             <div class="row align-items-start">
             <div class="col">
