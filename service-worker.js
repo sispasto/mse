@@ -1,4 +1,4 @@
-const CACHE_NAME = 'app-cache-v1.9';
+const CACHE_NAME = 'app-cache-v1.0';
 
 self.addEventListener('install', function(e) {
   console.log('Service Worker: Installed');

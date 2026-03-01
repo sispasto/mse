@@ -1,6 +1,6 @@
 {
-  "name": "UNP",
-  "short_name": "UNP",
+  "name": "MSE",
+  "short_name": "MSE",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
