@@ -222,7 +222,7 @@ async function authenticateUser() {
   }
 
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/authUser`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_authUser`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json", // solo este header        
@@ -284,7 +284,7 @@ async function updatePassword() {
   }
 
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/authUser`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_authUser`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
