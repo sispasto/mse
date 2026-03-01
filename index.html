@@ -242,7 +242,7 @@ async function authenticateUser() {
 
       // Mostrar menú según rol: 1=user cliente, 2=Aliado, 3=Admin
       document.getElementById('navbarItemsAdmin').style.display = resultado.rol === 3 ? 'block' : 'none';
-      document.getElementById('navbarItemsUser').style.display = resultado.rol === 2 ? 'none' : 'block';
+      document.getElementById('navbarItemsUser').style.display = resultado.rol === 2 ? 'block' : 'none';
       document.getElementById('navbarItemsDefault').style.display = 'none';
 
       sessionStorage.setItem('nombreUsuario', resultado.nombre);
