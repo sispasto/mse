@@ -62,6 +62,29 @@
                         <a class="nav-link" href="#" onclick="showLoginModal();"><i class="bi bi-door-open">Login</i></a>
                     </li>              
                 </ul>
+                 <!-- Rol Cliente -->
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="navbarItemsCliente" style="display:none">
+                    <!-- Inicio -->
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#" onclick="getHome();"><i class="bi bi-house"> Inicio</i></a>
+                    </li>
+                    <!-- Registrar -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="getRegistro();"><i class="bi bi-pencil-square"> Realizar marcación</i></a>
+                    </li> 
+                    <!-- Informe -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="getInforme();"><i class="bi bi-door-open"> Histórico por mes</i></a>
+                    </li>                                       
+                    <!-- Cambiar Clave -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showChangePasswordModal();"><i class="bi bi-key"> Cambiar clave</i></a>
+                    </li>
+                    <!-- Salir Button -->
+                    <li class="nav-item" id="logoutNavItem">
+                        <a class="nav-link" href="#" onclick="logout();"><i class="bi bi-box-arrow-right"> Salir</i></a>
+                    </li>
+                </ul>
                 <!-- Rol Usuario -->
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="navbarItemsUser" style="display:none">
                     <!-- Inicio -->
@@ -243,6 +266,7 @@ async function authenticateUser() {
       // Mostrar menú según rol: 1=user cliente, 2=Aliado, 3=Admin
       document.getElementById('navbarItemsAdmin').style.display = resultado.rol === 3 ? 'block' : 'none';
       document.getElementById('navbarItemsUser').style.display = resultado.rol === 2 ? 'block' : 'none';
+      document.getElementById('navbarItemsCliente').style.display = resultado.rol === 1 ? 'block' : 'none';
       document.getElementById('navbarItemsDefault').style.display = 'none';
 
       sessionStorage.setItem('nombreUsuario', resultado.nombre);
@@ -319,6 +343,7 @@ function logout(){
   document.getElementById('navbarItemsDefault').style.display = 'block';
   document.getElementById('navbarItemsUser').style.display = 'none';
   document.getElementById('navbarItemsAdmin').style.display = 'none';
+  document.getElementById('navbarItemsCliente').style.display = 'none';  
 
   sessionStorage.setItem('nombreUsuario', 'Invitado');
   sessionStorage.setItem('codigoUsuario', '0');
