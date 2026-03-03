@@ -101,22 +101,22 @@ var nsRegistroPersona = (function () {
     btn.classList.add("disabled");
 
     try {
-      const codigo = document.getElementById("codigo").value.trim();
-      const cedula = document.getElementById("cedula").value.trim();
-      const nombre = document.getElementById("nombre").value.trim();
+      const nombres = document.getElementById("nombres").value.trim();
+      const apellidos = document.getElementById("apellidos").value.trim();
+      const celular = document.getElementById("celular").value.trim();
 
-      if (!codigo || !cedula || !nombre) {
+      if (!nombres || !apellidos || !celular) {
         throw new Error("Todos los campos son obligatorios");
       }
 
       // 📦 FormData → Edge Function
       const formData = new FormData();
-      formData.append("codigo", codigo);
-      formData.append("cedula", cedula);
-      formData.append("nombre", nombre);
+      formData.append("nombres", nombres);
+      formData.append("apellidos", apellidos);
+      formData.append("celular", celular);
 
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/registrar_empleado`,
+        `${SUPABASE_URL}/functions/v1/mse_registrar_persona`,
         {
           method: "POST",
           headers: {
@@ -134,7 +134,7 @@ var nsRegistroPersona = (function () {
       }
 
       alertSMS(
-        `Empleado ${result.empleado.nombre.toUpperCase()} registrado correctamente ✅`
+        `${result.persona.nombres.toUpperCase()} ${result.persona.apellidos.toUpperCase()} fueregistrad@ correctamente ✅`
       );
 
       form.reset();
