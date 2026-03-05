@@ -261,24 +261,38 @@ async function authenticateUser() {
     const data = await response.json();
 
     if (data.status === "success") {
-      const resultado = data.usuario;
+      // Ahora los datos vienen directamente en la raíz: data.token y data.nombreusuario
+      const token = data.token;
+      const nombre = data.nombreusuario;
 
-      // Mostrar menú según rol: 1=user cliente, 2=Aliado, 3=Admin
-      document.getElementById('navbarItemsAdmin').style.display = resultado.rol === 3 ? 'block' : 'none';
-      document.getElementById('navbarItemsUser').style.display = resultado.rol === 2 ? 'block' : 'none';
-      document.getElementById('navbarItemsCliente').style.display = resultado.rol === 1 ? 'block' : 'none';
+      // Guardamos en sessionStorage
+      sessionStorage.setItem('mse_token', token);
+      sessionStorage.setItem('nombreUsuario', nombre);
+      
+      // Actualizamos la interfaz
+      document.getElementById('textUser').textContent = nombre;
+
+      // Manejo de Menús (Nota: Al no recibir 'rol', podrías ocultar/mostrar 
+      // elementos genéricos de usuario logueado o pedir el rol en otra consulta)
       document.getElementById('navbarItemsDefault').style.display = 'none';
+      // Ejemplo: Si el token existe, mostramos el menú de usuario estándar
+      document.getElementById('navbarItemsUser').style.display = 'block'; 
 
-      sessionStorage.setItem('nombreUsuario', resultado.nombre);
-      sessionStorage.setItem('codigoUsuario', resultado.codigo);
-      sessionStorage.setItem('rol', resultado.rol);
-      document.getElementById('textUser').textContent = resultado.nombre;
-
-      bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-      new bootstrap.Collapse(document.getElementById('navbarText'), { toggle: false }).hide();
+      // Cerrar Modales y Menús
+      const loginModal = document.getElementById('loginModal');
+      if (loginModal) {
+        const modalInstance = bootstrap.Modal.getInstance(loginModal);
+        if (modalInstance) modalInstance.hide();
+      }
+      
+      const navbarText = document.getElementById('navbarText');
+      if (navbarText) {
+        new bootstrap.Collapse(navbarText, { toggle: false }).hide();
+      }
 
       getHome();
       alertSMS("Autenticación correcta");
+
     } else {
       alertSMS(data.mensaje || "Usuario o clave incorrectos");
     }
