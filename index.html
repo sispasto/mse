@@ -245,60 +245,56 @@ async function authenticateUser() {
   }
 
   try {
+    // 1. Primero autenticamos contra Supabase Auth para obtener el Token
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: `${usuario}@mse.com`,
+      password: clave,
+    });
+
+    if (authError) {
+      alertSMS("Usuario o clave incorrectos");
+      return;
+    }
+
+    // 2. Con el Token obtenido, llamamos a la Edge Function
     const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_authUser`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", // solo este header        
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${authData.session.access_token}` 
       },
-      body: JSON.stringify({
-        action: "login",
-        usuario: usuario,
-        clave: clave
+      body: JSON.stringify({ 
+        action: "login", // Cambiado según tu solicitud
+        usuario: usuario 
       })
     });
 
     const data = await response.json();
 
     if (data.status === "success") {
-      // Ahora los datos vienen directamente en la raíz: data.token y data.nombreusuario
-      const token = data.token;
-      const nombre = data.nombreusuario;
+      // Usamos los datos retornados para activar el perfil en la UI
+      const { nombre, rol } = data;
 
-      // Guardamos en sessionStorage
-      sessionStorage.setItem('mse_token', token);
+      // Habilitar menús según el rol retornado
+      document.getElementById('navbarItemsAdmin').style.display   = rol === 3 ? 'block' : 'none';
+      document.getElementById('navbarItemsUser').style.display    = rol === 2 ? 'block' : 'none';
+      document.getElementById('navbarItemsCliente').style.display = rol === 1 ? 'block' : 'none';
+      document.getElementById('navbarItemsDefault').style.display = 'none';
+
+      // Solo guardamos el nombre para el saludo en la interfaz
       sessionStorage.setItem('nombreUsuario', nombre);
-      
-      // Actualizamos la interfaz
       document.getElementById('textUser').textContent = nombre;
 
-      // Manejo de Menús (Nota: Al no recibir 'rol', podrías ocultar/mostrar 
-      // elementos genéricos de usuario logueado o pedir el rol en otra consulta)
-      document.getElementById('navbarItemsDefault').style.display = 'none';
-      // Ejemplo: Si el token existe, mostramos el menú de usuario estándar
-      document.getElementById('navbarItemsUser').style.display = 'block'; 
-
-      // Cerrar Modales y Menús
-      const loginModal = document.getElementById('loginModal');
-      if (loginModal) {
-        const modalInstance = bootstrap.Modal.getInstance(loginModal);
-        if (modalInstance) modalInstance.hide();
-      }
+      // Cerrar modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+      if (modal) modal.hide();
       
-      const navbarText = document.getElementById('navbarText');
-      if (navbarText) {
-        new bootstrap.Collapse(navbarText, { toggle: false }).hide();
-      }
-
       getHome();
-      alertSMS("Autenticación correcta");
-
-    } else {
-      alertSMS(data.mensaje || "Usuario o clave incorrectos");
+      alertSMS("Bienvenido " + nombre);
     }
   } catch (err) {
-    console.error("Error al conectar con la Edge Function:", err);
-    alertSMS("Error en la conexión con el servidor");
+    console.error("Error en la conexión:", err);
+    alertSMS("No se pudo completar el inicio de sesión");
   }
 }
 
