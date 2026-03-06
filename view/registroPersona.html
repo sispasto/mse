@@ -83,7 +83,7 @@ var nsRegistroPersona = (function () {
   const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtYnh5ZmtldG11em9jZXBsbHZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODE4NjUsImV4cCI6MjA3MzM1Nzg2NX0.oh9zssayvCPp-jcCohQugTx28Ds2Ts-y7Tbp-pgX1XE";
-
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   /***********************************************/
   // Evitar submit con ENTER en inputs numéricos
   document.querySelectorAll('input[type=number]').forEach(node =>
@@ -109,21 +109,20 @@ var nsRegistroPersona = (function () {
         throw new Error("Todos los campos son obligatorios");
       }
 
-      // 📦 FormData → Edge Function
-      const formData = new FormData();
-      formData.append("nombres", nombres);
-      formData.append("apellidos", apellidos);
-      formData.append("celular", celular);
+      // --- OBTENER TOKEN DE SESIÓN ACTIVA ---
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) throw new Error("Debes estar autenticado para registrar personas");
 
+      // Enviamos como JSON para que la función lo lea más fácil
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/mse_registrar_persona`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "apikey": SUPABASE_ANON_KEY
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}` // Token de la empresa
           },
-          body: formData
+          body: JSON.stringify({ nombres, apellidos, celular })
         }
       );
 
@@ -134,7 +133,7 @@ var nsRegistroPersona = (function () {
       }
 
       alertSMS(
-        `${result.persona.nombres.toUpperCase()} ${result.persona.apellidos.toUpperCase()} fue registrad@ correctamente ✅`
+        `${nombres.toUpperCase()} ${apellidos.toUpperCase()} fue registrad@ correctamente ✅`
       );
 
       form.reset();
@@ -147,7 +146,6 @@ var nsRegistroPersona = (function () {
       btn.classList.remove("disabled");
     }
   }
-
   /***********************************************/
   return {
     procesarFormulario
