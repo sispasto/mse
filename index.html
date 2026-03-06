@@ -264,8 +264,7 @@ async function authenticateUser() {
         "Authorization": `Bearer ${authData.session.access_token}` 
       },
       body: JSON.stringify({ 
-        action: "login", // Cambiado según tu solicitud
-        usuario: usuario 
+        action: "login", 
       })
     });
 
