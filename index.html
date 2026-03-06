@@ -348,23 +348,45 @@ async function updatePassword() {
 // ============================
 // CERRAR SESIÓN
 // ============================
-function logout(){
-  document.getElementById('navbarItemsDefault').style.display = 'block';
-  document.getElementById('navbarItemsUser').style.display = 'none';
-  document.getElementById('navbarItemsAdmin').style.display = 'none';
-  document.getElementById('navbarItemsCliente').style.display = 'none';  
+async function logout() {
+  try {
+    // 1. Cerramos la sesión en el servidor de Supabase
+    // Esto invalida el token actual (JWT)
+    const { error } = await supabaseClient.auth.signOut();
+    
+    if (error) console.error("Error al cerrar sesión en Supabase:", error.message);
 
-  sessionStorage.setItem('nombreUsuario', 'Invitado'); 
-  document.getElementById('textUser').textContent = 'Invitado';
+    // 2. Limpieza de UI (Lo que ya tenías)
+    document.getElementById('navbarItemsDefault').style.display = 'block';
+    document.getElementById('navbarItemsUser').style.display = 'none';
+    document.getElementById('navbarItemsAdmin').style.display = 'none';
+    document.getElementById('navbarItemsCliente').style.display = 'none';  
 
-  document.getElementById('username').value = '';
-  document.getElementById('password').value = '';
-  document.getElementById('newPassword').value = '';
-  document.getElementById('confirmNewPassword').value = '';
+    // 3. Limpieza de datos de sesión locales
+    sessionStorage.clear(); // Borra todo, incluyendo nombreUsuario y rol
+    sessionStorage.setItem('nombreUsuario', 'Invitado');    
+    
+    document.getElementById('textUser').textContent = 'Invitado';
 
-  new bootstrap.Collapse(document.getElementById('navbarText'), { toggle: false }).hide();
-  getHome();
-  alertSMS("Sesión cerrada correctamente");
+    // 4. Limpiar campos de formularios
+    const fields = ['username', 'password', 'newPassword', 'confirmNewPassword'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    // 5. Navegación y alertas
+    const navbarCollapse = document.getElementById('navbarText');
+    if (navbarCollapse) {
+      new bootstrap.Collapse(navbarCollapse, { toggle: false }).hide();
+    }
+    
+    getHome();
+    alertSMS("Sesión cerrada correctamente");
+
+  } catch (err) {
+    console.error("Error crítico en logout:", err);
+  }
 }
 </script>
 
