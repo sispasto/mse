@@ -302,30 +302,39 @@ async function authenticateUser() {
 // ACTUALIZAR CONTRASEÑA
 // ============================
 async function updatePassword() {
-  const usuario = sessionStorage.getItem('codigoUsuario');
   const claveNueva = document.getElementById('newPassword').value.trim();
   const confirmacionClave = document.getElementById('confirmNewPassword').value.trim();
 
+  // 1. Validaciones básicas de cliente
   if (claveNueva !== confirmacionClave) {
     alertSMS("Las claves no coinciden");
     return;
   }
 
-  if (!usuario || !claveNueva) {
-    alertSMS("Faltan datos para actualizar la clave");
+  if (claveNueva.length < 6) {
+    alertSMS("La clave debe tener al menos 6 caracteres");
     return;
   }
 
   try {
+    // 2. Obtener la sesión actual para extraer el Token (JWT)
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+      alertSMS("Sesión expirada. Por favor, inicia sesión de nuevo.");
+      return;
+    }
+
+    // 3. Llamada a la Edge Function
     const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_authUser`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        // USAMOS EL ACCESS_TOKEN DEL USUARIO, NO LA ANON_KEY
+        "Authorization": `Bearer ${session.access_token}`
       },      
       body: JSON.stringify({
         action: "updatePassword",
-        usuario: usuario,
         claveNueva: claveNueva
       })
     });
@@ -333,18 +342,27 @@ async function updatePassword() {
     const data = await response.json();
 
     if (data.status === "success") {
-      bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
-      new bootstrap.Collapse(document.getElementById('navbarText'), { toggle: false }).hide();
+      // 4. Limpiar y cerrar modales
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmNewPassword').value = '';
+      
+      const modalEl = document.getElementById('changePasswordModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+
+      const navEl = document.getElementById('navbarText');
+      const bsCollapse = bootstrap.Collapse.getInstance(navEl) || new bootstrap.Collapse(navEl, { toggle: false });
+      bsCollapse.hide();
+
       alertSMS("Clave actualizada exitosamente");
     } else {
       alertSMS(data.mensaje || "No se pudo actualizar la clave");
     }
   } catch (err) {
-    console.error(err);
-    alertSMS("Error en la conexión");
+    console.error("Error en updatePassword:", err);
+    alertSMS("Error en la conexión al servidor");
   }
 }
-
 // ============================
 // CERRAR SESIÓN
 // ============================
