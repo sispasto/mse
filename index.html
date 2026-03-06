@@ -354,9 +354,7 @@ function logout(){
   document.getElementById('navbarItemsAdmin').style.display = 'none';
   document.getElementById('navbarItemsCliente').style.display = 'none';  
 
-  sessionStorage.setItem('nombreUsuario', 'Invitado');
-  sessionStorage.setItem('codigoUsuario', '0');
-  sessionStorage.setItem('rol', 0);
+  sessionStorage.setItem('nombreUsuario', 'Invitado'); 
   document.getElementById('textUser').textContent = 'Invitado';
 
   document.getElementById('username').value = '';
