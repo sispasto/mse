@@ -36,9 +36,9 @@ var nsRedencion = (function() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) return mostrarError("Sesión no encontrada.");
 
-      // Lectura de la variable exacta en tu sessionStorage: 'personald'
-      let personaIdRaw = sessionStorage.getItem('personald'); 
-      if (!personaIdRaw) return mostrarError("No se encontró 'personald' en la sesión.");
+      // Lectura de la variable exacta en tu sessionStorage: 'personaId'
+      let personaIdRaw = sessionStorage.getItem('personaId'); 
+      if (!personaIdRaw) return mostrarError("No se encontró 'personaId' en la sesión.");
 
       const personaId = parseInt(personaIdRaw, 10);
 
