@@ -243,7 +243,7 @@ async function authenticateUser() {
   }
 
   try {
-    // 1. Primero autenticamos contra Supabase Auth para obtener el Token
+    // 1. Autenticación básica
     const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
       email: `${usuario}@mse.com`,
       password: clave,
@@ -254,36 +254,38 @@ async function authenticateUser() {
       return;
     }
 
-    // 2. Con el Token obtenido, llamamos a la Edge Function
+    // 2. Obtener perfil detallado desde Edge Function
     const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_authUser`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${authData.session.access_token}` 
       },
-      body: JSON.stringify({ 
-        action: "login", 
-      })
+      body: JSON.stringify({ action: "login" })
     });
 
     const data = await response.json();
 
     if (data.status === "success") {
-      // Usamos los datos retornados para activar el perfil en la UI
-      const { nombre, rol } = data;
+      const { nombre, rol, persona_id, empresa_id } = data;
 
-      // Habilitar menús según el rol retornado
+      // Habilitar menús según rol
       document.getElementById('navbarItemsAdmin').style.display   = rol === 3 ? 'block' : 'none';
       document.getElementById('navbarItemsUser').style.display    = rol === 2 ? 'block' : 'none';
       document.getElementById('navbarItemsCliente').style.display = rol === 1 ? 'block' : 'none';
       document.getElementById('navbarItemsDefault').style.display = 'none';
 
-      // Solo guardamos el nombre para el saludo en la interfaz
+      // GUARDAR DATOS CLAVE PARA EL RESTO DE LA APP
       sessionStorage.setItem('nombreUsuario', nombre);
+      sessionStorage.setItem('userRol', rol);
+      sessionStorage.setItem('personaId', persona_id || ''); // Para registros de beneficios
+      sessionStorage.setItem('empresaId', empresa_id || ''); // Para filtrar redes
+
       document.getElementById('textUser').textContent = nombre;
 
-      // Cerrar modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+      // Cerrar modal y redirigir
+      const modalElement = document.getElementById('loginModal');
+      const modal = bootstrap.Modal.getInstance(modalElement);
       if (modal) modal.hide();
       
       getHome();
@@ -294,7 +296,6 @@ async function authenticateUser() {
     alertSMS("No se pudo completar el inicio de sesión");
   }
 }
-
 
 // ============================
 // ACTUALIZAR CONTRASEÑA

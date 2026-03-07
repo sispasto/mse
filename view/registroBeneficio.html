@@ -1,10 +1,6 @@
 <style>   
   .icono { width: 32px; height: 32px; max-width: 60%; }
   .texto-icono { font-size: 10px; font-family: 'Poppins', sans-serif; }
-  @media screen and (min-width: 768px) {
-    .icono { width: 48px; height: 48px; }
-    .texto-icono { font-size: 14px; font-family: 'Poppins', sans-serif; }
-  }
 </style>
 
 <div>
@@ -13,7 +9,6 @@
       <div class="container-fluid p-0 m-0">
         <div class="row justify-content-center">
           <div class="col-12 col-sm-12 col-md-12 col-lg-6 col-xl-5">
-
             <div class="card shadow border-0">
               <div class="card-header bg-dark text-white d-flex align-items-center" style="height:3rem">
                 <h5 class="card-title mb-0 fw-bold">Asignar Beneficio a Cliente</h5>
@@ -21,31 +16,25 @@
 
               <div class="card-body">
                 <div class="mb-3">
-                  <label class="form-label">ID de Persona (Cliente)</label>
-                  <input type="number" class="form-control" id="persona_id" placeholder="Ingrese el ID de la persona" required>
+                  <label class="form-label fw-bold">Celular del Cliente</label>
+                  <input type="tel" id="celular_cliente" placeholder="Ej: 3001234567" 
+                         pattern="^3[0-9]{9}$" maxlength="10" class="form-control" required>
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">Servicio</label>
-                  <select id="id_servicio" class="form-select" required>
-                    <option value="">Seleccione el servicio...</option>
-                    <option value="f440b5c5-2d27-4d26-9320-e9885d01f3f8">Servicio Ejemplo</option>
+                  <label class="form-label fw-bold">Red de Redención</label>
+                  <select id="id_red" class="form-select" disabled>
+                    <option value="null">Cargando redes...</option>
                   </select>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">Descuento (%) o Valor</label>
-                  <input type="number" step="0.01" id="valor_descuento" class="form-control" placeholder="Ej: 15.00" required>
                 </div>
               </div>
 
               <div class="card-footer d-flex gap-2">
-                <button type="submit" class="btn btn-dark flex-fill" id="btnGuardarBeneficio">
-                  REGISTRAR BENEFICIO
+                <button type="submit" class="btn btn-dark flex-fill" id="btnGuardarBeneficio" disabled>
+                  ASIGNAR BENEFICIO
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -55,64 +44,94 @@
 
 <script>
 var nsRegistroBeneficio = (function () {
-
   const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // Tu llave
+  const SUPABASE_ANON_KEY = "TU_ANON_KEY";
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  async function procesarFormulario(event, form) {
-    event.preventDefault();
-
+  async function cargarRedes() {
+    const selectRed = document.getElementById("id_red");
     const btn = document.getElementById("btnGuardarBeneficio");
-    btn.disabled = true;
-    btn.classList.add("disabled");
 
     try {
-      const persona_id = document.getElementById("persona_id").value;
-      const id_servicio = document.getElementById("id_servicio").value;
-      const descuento = document.getElementById("valor_descuento").value;
-
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) throw new Error("Sesión no válida. Inicie sesión nuevamente.");
+      if (!session) return;
 
-      // Llamada a la Edge Function específica de beneficios
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/mse_registrar_beneficio`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ 
-            persona_id: parseInt(persona_id), 
-            id_servicio: id_servicio, 
-            descuento: parseFloat(descuento) 
-          })
-        }
-      );
+      // 1. Obtener el empresa_id del usuario logueado
+      const { data: usuario } = await supabaseClient
+        .from("mse_usuarios")
+        .select("empresa_id")
+        .eq("uuid", session.user.id)
+        .single();
 
-      const result = await response.json();
+      if (!usuario?.empresa_id) throw new Error("No se vinculó empresa");
 
-      if (!response.ok) {
-        throw new Error(result.error || "Error al registrar el beneficio");
-      }
+      // 2. Consultar las redes donde la empresa tiene beneficios configurados
+      // Usamos la tabla mse_beneficios_red para saber en qué redes participa
+      const { data: redes, error } = await supabaseClient
+        .from("mse_redes")
+        .select(`
+          id,
+          nombre
+        `)
+        .in('id', 
+          (await supabaseClient
+            .from('mse_beneficios_red')
+            .select('red_id')
+            .eq('empresa_id', usuario.empresa_id)
+          ).data.map(r => r.red_id)
+        );
 
-      alertSMS("Beneficio asignado correctamente ✅");
-      form.reset();
+      if (error) throw error;
+
+      // 3. Llenar el Select
+      let opciones = '<option value="null">--- Todas las Redes (Global) ---</option>';
+      redes.forEach(red => {
+        opciones += `<option value="${red.id}">${red.nombre}</option>`;
+      });
+
+      selectRed.innerHTML = opciones;
+      selectRed.disabled = false;
+      btn.disabled = false;
 
     } catch (err) {
-      console.error(err);
-      alertSMS(err.message);
-    } finally {
-      btn.disabled = false;
-      btn.classList.remove("disabled");
+      console.error("Error cargando redes:", err);
+      selectRed.innerHTML = '<option value="null">Error al cargar redes</option>';
     }
   }
 
-  return {
-    procesarFormulario
-  };
+  async function procesarFormulario(event, form) {
+    event.preventDefault();
+    const btn = document.getElementById("btnGuardarBeneficio");
+    btn.disabled = true;
 
+    try {
+      const celular = document.getElementById("celular_cliente").value.trim();
+      let id_red = document.getElementById("id_red").value;
+      id_red = (id_red === "null") ? null : id_red;
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_registrar_beneficio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ celular, id_red }) 
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      alertSMS(`✅ Beneficio registrado correctamente.`);
+      form.reset();
+      // Mantenemos las redes cargadas
+    } catch (err) {
+      alertSMS(err.message);
+      btn.disabled = false;
+    }
+  }
+
+  return { procesarFormulario, cargarRedes };
 })();
 </script>
