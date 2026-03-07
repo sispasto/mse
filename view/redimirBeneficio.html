@@ -24,39 +24,36 @@
 
 <script>
 var nsRedencion = (function() {
-  // Configuración necesaria dentro del scope
   const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtYnh5ZmtldG11em9jZXBsbHZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODE4NjUsImV4cCI6MjA3MzM1Nzg2NX0.oh9zssayvCPp-jcCohQugTx28Ds2Ts-y7Tbp-pgX1XE";
   
-  // Asegurarnos de usar el cliente global o crearlo si no existe
   const supabaseClient = window.supabase ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
   let misBeneficios = [];
 
   async function inicializar() {
     try {
-      if (!supabaseClient) {
-        console.error("Supabase no está definido.");
-        return;
-      }
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return mostrarError("Sesión de Supabase no encontrada.");
 
-      const { data: { session }, error: sessionErr } = await supabaseClient.auth.getSession();
-      if (sessionErr || !session) {
-          mostrarError("Debes iniciar sesión para ver tus beneficios.");
-          return;
-      }
+      // Uso de sessionStorage según la imagen proporcionada
+      const personaIdRaw = sessionStorage.getItem('personald'); 
+      if (!personaIdRaw) return mostrarError("No se encontró 'personald' en el sessionStorage.");
 
-      // Llamada a la Edge Function
+      // Conversión explícita a número para evitar el error 'invalid input syntax for type bigint'
+      const personaId = parseInt(personaIdRaw, 10);
+
+      // Consulta exclusiva mediante Edge Function
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_beneficios_persona`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
-        }
+        },
+        body: JSON.stringify({ persona_id: personaId })
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Error al consultar");
+      if (!res.ok) throw new Error(result.error || "Error al consultar la Edge Function");
 
       misBeneficios = result.data || [];
       renderEmpresas();
@@ -70,16 +67,29 @@ var nsRedencion = (function() {
   function renderEmpresas() {
     const contenedor = document.getElementById('listaEmpresasBeneficio');
     if (!contenedor) return;
-    
+
     if (misBeneficios.length === 0) {
-        contenedor.innerHTML = '<p class="text-muted small">No tienes beneficios activos sin redimir.</p>';
-        return;
+      contenedor.innerHTML = '<p class="text-muted small">No tienes beneficios activos sin redimir.</p>';
+      return;
     }
 
-    contenedor.innerHTML = misBeneficios.map(b => `
+    // Identificar empresas únicas para el carrusel superior
+    const empresasUnicas = [];
+    const idsProcesados = new Set();
+
+    misBeneficios.forEach(b => {
+      if (!idsProcesados.has(b.empresa_origen_id)) {
+        idsProcesados.add(b.empresa_origen_id);
+        empresasUnicas.push(b);
+      }
+    });
+
+    contenedor.innerHTML = empresasUnicas.map(b => `
       <div class="empresa-item text-center p-2" onclick="nsRedencion.seleccionarEmpresa('${b.empresa_origen_id}', this)">
         <img src="${b.mse_empresas?.logo_url || 'https://via.placeholder.com/60'}" class="logo-empresa shadow-sm">
-        <div class="small mt-1 fw-bold text-truncate" style="max-width: 80px;">${b.mse_empresas?.nombre_comercial || 'Empresa'}</div>
+        <div class="small mt-1 fw-bold text-truncate" style="max-width: 80px;">
+          ${b.mse_empresas?.nombre_comercial || 'Empresa'}
+        </div>
       </div>
     `).join('');
   }
@@ -94,38 +104,27 @@ var nsRedencion = (function() {
     const contenedor = document.getElementById('contenedorServicios');
     contenedor.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div></div>';
     
-    // CONSULTA OPTIMIZADA
-    let query = supabaseClient
+    // Los servicios se consultan directamente ya que es un catálogo de referencia
+    let { data: servicios, error } = await supabaseClient
       .from('mse_servicios')
       .select('*')
       .eq('activo', true);
 
-    // Si tu lógica dice que id_red manda:
-    if (beneficio.id_red) {
-        // Asegúrate de que id_red en la DB sea UUID si pasas un UUID
-        query = query.eq('id_red', beneficio.id_red);
-    } else {
-        // Si empresa_id es BIGINT, y empresaId es UUID, esto fallará.
-        // Verifica si 'empresa_id' realmente debería recibir ese UUID.
-        query = query.eq('empresa_id', empresaId); 
-    }
+    if (error) return mostrarError("Error al cargar servicios: " + error.message);
 
-    const { data: servicios, error } = await query;
+    // Filtrado por Red o por Empresa específica
+    const filtrados = beneficio.id_red 
+      ? servicios.filter(s => s.id_red === beneficio.id_red)
+      : servicios.filter(s => s.empresa_id === empresaId);
 
-    if (error) {
-        console.error("Error filtrando servicios:", error);
-        mostrarError("Error al cargar servicios: " + error.message);
-        return;
-    }
-
-    renderServicios(servicios, beneficio.id);
-}
+    renderServicios(filtrados, beneficio.id);
+  }
 
   function renderServicios(servicios, beneficioId) {
     const contenedor = document.getElementById('contenedorServicios');
-    if (!servicios || servicios.length === 0) {
-        contenedor.innerHTML = '<p class="text-center py-5 text-muted">No hay servicios disponibles para esta selección.</p>';
-        return;
+    if (!servicios.length) {
+      contenedor.innerHTML = '<p class="text-center py-5 text-muted">No hay servicios disponibles para esta empresa.</p>';
+      return;
     }
 
     contenedor.innerHTML = servicios.map(s => `
@@ -144,27 +143,27 @@ var nsRedencion = (function() {
   }
 
   async function ejecutarRedencion(beneficioId, servicioId) {
-      if (!confirm("¿Deseas redimir este beneficio ahora?")) return;
+    if (!confirm("¿Deseas redimir este beneficio ahora?")) return;
 
-      try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_redimir_beneficio`, {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${session.access_token}`
-              },
-              body: JSON.stringify({ beneficio_id: beneficioId, servicio_id: servicioId })
-          });
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_redimir_beneficio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ beneficio_id: beneficioId, servicio_id: servicioId })
+      });
 
-          const result = await res.json();
-          if (!res.ok) throw new Error(result.error);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Error en el proceso de redención");
 
-          alert("¡Redención exitosa!");
-          inicializar(); // Recargar lista
-      } catch (err) {
-          alert("Error: " + err.message);
-      }
+      alert("¡Redención exitosa!");
+      inicializar(); // Refrescar vista
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
   }
 
   function mostrarError(msg) {
@@ -175,10 +174,5 @@ var nsRedencion = (function() {
   return { inicializar, seleccionarEmpresa, ejecutarRedencion };
 })();
 
-// Lógica de arranque robusta
-if (document.readyState === "complete" || document.readyState === "interactive") {
-    nsRedencion.inicializar();
-} else {
-    document.addEventListener("DOMContentLoaded", nsRedencion.inicializar);
-}
+document.addEventListener("DOMContentLoaded", nsRedencion.inicializar);
 </script>
