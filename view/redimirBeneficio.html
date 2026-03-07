@@ -30,6 +30,7 @@ var nsRedencion = (function() {
 
     async function inicializar() {
     try {
+        alert("Cargando tus beneficios disponibles...");
         const { data: { session }, error: sessionErr } = await supabaseClient.auth.getSession();
         if (sessionErr || !session) throw new Error("Sesión no válida");
 
