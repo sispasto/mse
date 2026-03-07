@@ -87,6 +87,14 @@ function registrarBeneficio() {
   frmBeneficio.setAttribute('container', '#App'); // <-- aquí pasas el parámetro
   main.appendChild(frmBeneficio);      
 }
+  
+function redimirBeneficio() {    
+  let main = document.getElementById('App');
+  removeALLChilds(main);
+  const frmredimirBeneficio = document.createElement('redimir-beneficio');
+  frmredimirBeneficio.setAttribute('container', '#App'); // <-- aquí pasas el parámetro
+  main.appendChild(frmredimirBeneficio);      
+}
 
 function getInforme() {    
   let main = document.getElementById('App');

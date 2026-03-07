@@ -1,0 +1,91 @@
+<style>
+  .empresa-item { cursor: pointer; transition: 0.3s; opacity: 0.6; }
+  .empresa-item.active { opacity: 1; transform: scale(1.1); border-bottom: 3px solid #198754; }
+  .logo-empresa { width: 60px; height: 60px; object-fit: contain; border-radius: 50%; background: #eee; }
+  .card-servicio { border: none; border-radius: 12px; transition: 0.3s; }
+  .card-servicio:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: translateY(-5px); }
+</style>
+
+<div class="container mt-4">
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h6 class="text-muted mb-3 fw-bold">Mis Beneficios Disponibles</h6>
+      <div id="listaEmpresasBeneficio" class="d-flex gap-4 overflow-auto pb-2">
+        </div>
+    </div>
+  </div>
+
+  <div id="contenedorServicios" class="row g-3">
+    <div class="col-12 text-center py-5">
+      <p class="text-muted">Selecciona una empresa para ver los servicios disponibles</p>
+    </div>
+  </div>
+</div>
+
+<script>
+var nsRedencion = (function() {
+  let misBeneficios = [];
+
+  async function inicializar() {
+    const personaId = sessionStorage.getItem('personaId'); // ID del cliente logueado
+    // Llamada a la función para obtener beneficios activos
+    const res = await fetch('...'); 
+    const { beneficios } = await res.json();
+    misBeneficios = beneficios;
+    renderEmpresas();
+  }
+
+  function renderEmpresas() {
+    const contenedor = document.getElementById('listaEmpresasBeneficio');
+    contenedor.innerHTML = misBeneficios.map(b => `
+      <div class="empresa-item text-center" onclick="nsRedencion.seleccionarEmpresa('${b.empresa_origen_id}', this)">
+        <img src="${b.mse_empresas.logo_url || 'assets/default-empresa.png'}" class="logo-empresa shadow-sm">
+        <div class="small mt-1 fw-bold">${b.mse_empresas.nombre_comercial}</div>
+      </div>
+    `).join('');
+  }
+
+  async function seleccionarEmpresa(empresaId, elemento) {
+    // UI: Marcar activo
+    document.querySelectorAll('.empresa-item').forEach(el => el.classList.remove('active'));
+    elemento.classList.add('active');
+
+    const beneficio = misBeneficios.find(b => b.empresa_origen_id === empresaId);
+    
+    // Lógica de Redes:
+    // Si id_red existe, filtramos por esa red. Si es null, buscamos en todas sus redes.
+    let query = supabase.from('mse_servicios').select('*');
+    
+    if (beneficio.id_red) {
+      query = query.eq('id_red', beneficio.id_red);
+    } else {
+      // Obtener todas las redes asociadas a esa empresa y filtrar servicios
+      query = query.eq('empresa_id', empresaId); 
+    }
+
+    const { data: servicios } = await query;
+    renderServicios(servicios);
+  }
+
+  function renderServicios(servicios) {
+    const contenedor = document.getElementById('contenedorServicios');
+    contenedor.innerHTML = servicios.map(s => `
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="card h-100 card-servicio shadow-sm">
+          <div class="card-body text-center">
+            <h6 class="fw-bold mb-1">${s.nombre}</h6>
+            <p class="small text-muted mb-2">${s.descripcion || ''}</p>
+            <button class="btn btn-sm btn-success w-100" onclick="nsRedencion.redimir('${s.id}')">
+              Redimir
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  return { inicializar, seleccionarEmpresa };
+})();
+
+document.addEventListener('DOMContentLoaded', nsRedencion.inicializar);
+</script>

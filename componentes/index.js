@@ -10,4 +10,5 @@ import'./registroPersona.js';
 import'./consultarPersona.js';
 import'./registroBeneficio.js';
 import'./consultarBeneficios.js';
+import'./redimirBeneficioComponent.js';
 
