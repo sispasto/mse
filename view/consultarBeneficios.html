@@ -92,40 +92,38 @@ var nsConsultarBeneficios = (function () {
   }
 
   function render(data) {
-    const tbody = document.getElementById("tbodyBeneficios");
-    tbody.innerHTML = "";
+  const tbody = document.getElementById("tbodyBeneficios");
+  tbody.innerHTML = "";
 
-    if (!data.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="4" class="text-center text-muted py-3">
-            No hay beneficios registrados para esta empresa.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    data.forEach(b => {
-      const esSinRedimir = b.nom_servicio === 'SIN REDIMIR'; //
-      const claseEstado = b.estado === 'activo' ? 'badge-activo' : 'badge-inactivo';
-
-      tbody.innerHTML += `
-        <tr>
-          <td class="fw-bold">${b.cliente}</td>
-          <td>${b.celular}</td>
-          <td>
-            <span class="${esSinRedimir ? 'badge-redimir' : ''}">
-              ${b.nom_servicio}
-            </span>
-          </td>
-          <td class="text-center">
-            <span class="${claseEstado}">${b.estado.toUpperCase()}</span>
-          </td>
-        </tr>
-      `;
-    });
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-3">No hay registros</td></tr>`;
+    return;
   }
+
+  data.forEach(b => {
+    // Formatear la fecha para que sea legible
+    const fechaExp = b.expiracion 
+      ? new Date(b.expiracion).toLocaleDateString('es-ES') 
+      : 'Sin fecha';
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold">${b.cliente}</td>
+        <td>${b.celular}</td>
+        <td>
+          <span class="${b.nom_servicio === 'SIN REDIMIR' ? 'badge-redimir' : ''}">
+            ${b.nom_servicio}
+          </span>
+        </td>
+        <td>${fechaExp}</td> <td class="text-center">
+          <span class="${b.estado === 'activo' ? 'badge-activo' : 'badge-inactivo'}">
+            ${b.estado.toUpperCase()}
+          </span>
+        </td>
+      </tr>
+    `;
+  });
+}
 
   function filtrar(txt) {
     txt = txt.toLowerCase();
