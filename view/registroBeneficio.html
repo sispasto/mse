@@ -103,34 +103,67 @@ var nsRegistroBeneficio = (function () {
    * Envía los datos a la Edge Function correspondiente para registrar el beneficio.
    */
 
+  /**
+   * Procesa el formulario de asignación de beneficio.
+   * Envía celular, id_red, empresa_id y rol a la Edge Function.
+   */
   async function procesarFormulario(event, form) {
     event.preventDefault();
     const btn = document.getElementById("btnGuardarBeneficio");
+    
+    // 1. Obtener datos de sesión locales
+    const empresaId = sessionStorage.getItem('empresaId');
+    const rol = sessionStorage.getItem('userRol');
+    const celular = document.getElementById("celular_cliente").value.trim();
+    
+    // 2. Validar que la sesión esté activa antes de intentar el fetch
+    if (!empresaId || !rol) {
+      alertSMS("Error: Sesión no válida. Por favor, reingrese al sistema.");
+      return;
+    }
+
     btn.disabled = true;
 
     try {
-      const celular = document.getElementById("celular_cliente").value.trim();
+      // 3. Preparar el ID de la red (convertir "null" de select a null de JSON)
       let id_red = document.getElementById("id_red").value;
       id_red = (id_red === "null") ? null : id_red;
 
       const { data: { session } } = await supabaseClient.auth.getSession();
-      
+      if (!session) throw new Error("Sesión de Supabase expirada");
+
+      // 4. Llamada a la Edge Function con los 4 parámetros requeridos
       const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_registrar_beneficio`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ celular, id_red }) 
+        body: JSON.stringify({ 
+          celular: celular,    // Para buscar el persona_id en el servidor
+          id_red: id_red,      // Red seleccionada o null
+          empresa_id: empresaId, // Proveniente de sessionStorage
+          rol: rol             // Proveniente de sessionStorage
+        }) 
       });
 
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
 
+      if (!response.ok) {
+        // Manejo específico para cuando el celular no existe
+        throw new Error(result.error || "Error desconocido al registrar");
+      }
+
+      // 5. Éxito: Notificar y limpiar formulario
       alertSMS(`✅ Beneficio registrado correctamente.`);
       form.reset();
+      
+      // Opcional: Recargar redes por si se desea registrar otro inmediatamente
+      await cargarRedes();
+
     } catch (err) {
-      alertSMS(err.message);
+      console.error("Error en procesarFormulario:", err.message);
+      alertSMS(`⚠️ ${err.message}`);
     } finally {
       btn.disabled = false;
     }
