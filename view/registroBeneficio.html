@@ -47,60 +47,60 @@ var nsRegistroBeneficio = (function () {
   const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
   const SUPABASE_ANON_KEY = "TU_ANON_KEY";
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+  
+  /**
+   * Carga las redes de redención disponibles para la empresa.
+   * Se llama al cargar la página para llenar el select correspondiente.
+   */
   async function cargarRedes() {
     const selectRed = document.getElementById("id_red");
     const btn = document.getElementById("btnGuardarBeneficio");
-
-    // 1. Usar el empresaId directamente desde sessionStorage
+    
+    // Obtenemos el ID del sessionStorage
     const empresaId = sessionStorage.getItem('empresaId');
 
     if (!empresaId) {
-      console.error("No se encontró empresaId en la sesión");
-      selectRed.innerHTML = '<option value="null">Error: Sesión no válida</option>';
+      selectRed.innerHTML = '<option value="null">Sesión expirada</option>';
       return;
     }
 
     try {
-      // 2. Consultar las redes filtrando por el empresaId de la sesión
-      // Primero obtenemos los red_id asociados a la empresa en mse_beneficios_red
-      const { data: relaciones, error: relError } = await supabaseClient
-        .from('mse_beneficios_red')
-        .select('red_id')
-        .eq('empresa_id', empresaId);
-
-      if (relError) throw relError;
-
-      if (!relaciones || relaciones.length === 0) {
-        selectRed.innerHTML = '<option value="null">Sin redes asignadas</option>';
-        btn.disabled = false; // Permitir envío global si aplica
-        return;
-      }
-
-      // 3. Obtener los nombres de las redes correspondientes
-      const idsRedes = relaciones.map(r => r.red_id);
-      const { data: redes, error: redesError } = await supabaseClient
-        .from("mse_redes")
-        .select("id, nombre")
-        .in('id', idsRedes);
-
-      if (redesError) throw redesError;
-
-      // 4. Llenar el Select
-      let opciones = '<option value="null">--- Todas las Redes (Global) ---</option>';
-      redes.forEach(red => {
-        opciones += `<option value="${red.id}">${red.nombre}</option>`;
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      // Única llamada a la Edge Function
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/mse_getRedes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ empresa_id: empresaId }) 
       });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      let opciones = '<option value="null">--- Todas las Redes (Global) ---</option>';
+      
+      if (result.redes && result.redes.length > 0) {
+        result.redes.forEach(red => {
+          opciones += `<option value="${red.id}">${red.nombre}</option>`;
+        });
+      }
 
       selectRed.innerHTML = opciones;
       selectRed.disabled = false;
       btn.disabled = false;
 
     } catch (err) {
-      console.error("Error cargando redes:", err);
+      console.error("Error al obtener redes:", err);
       selectRed.innerHTML = '<option value="null">Error al cargar redes</option>';
     }
   }
+  /**
+   * Procesa el formulario de asignación de beneficio.
+   * Envía los datos a la Edge Function correspondiente para registrar el beneficio.
+   */
 
   async function procesarFormulario(event, form) {
     event.preventDefault();
