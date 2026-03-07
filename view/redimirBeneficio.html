@@ -84,7 +84,7 @@ var nsRedencion = (function() {
 
     contenedor.innerHTML = empresasUnicas.map(b => `
       <div class="empresa-item text-center p-2" onclick="nsRedencion.seleccionarEmpresa('${b.empresa_origen_id}', this)">
-        <img src="${b.mse_empresas?.logo_url || 'https://pmbxyfketmuzocepllvf.supabase.co/storage/v1/object/public/demo/heartbeat_2791163.png'}" class="logo-empresa shadow-sm">
+        <img src="${b.mse_empresas?.logo || ''}" class="logo-empresa shadow-sm">
         <div class="small mt-1 fw-bold text-truncate" style="max-width: 80px;">
           ${b.mse_empresas?.nombre || 'Empresa'}
         </div>
