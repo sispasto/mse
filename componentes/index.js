@@ -9,4 +9,5 @@ import'./acercade.js';
 import'./registroPersona.js';
 import'./consultarPersona.js';
 import'./registroBeneficio.js';
+import'./consultarBeneficios.js';
 

@@ -71,6 +71,15 @@ function alertSMS(texto) {
   toast.show();
 }
 
+
+function consultarBeneficios() {    
+  let main = document.getElementById('App');
+  removeALLChilds(main);
+  const frmgetBeneficios = document.createElement('consultar-beneficio');
+  frmgetBeneficios.setAttribute('container', '#App'); // <-- aquí pasas el parámetro
+  main.appendChild(frmgetBeneficios);      
+}
+
 function registrarBeneficio() {    
   let main = document.getElementById('App');
   removeALLChilds(main);
