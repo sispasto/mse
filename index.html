@@ -367,44 +367,54 @@ async function updatePassword() {
 // ============================
 async function logout() {
   try {
-    // 1. Cerramos la sesión en el servidor de Supabase
-    // Esto invalida el token actual (JWT)
+    // 1. Cerrar sesión en el servidor de Supabase (Invalida el JWT)
     const { error } = await supabaseClient.auth.signOut();
-    
     if (error) console.error("Error al cerrar sesión en Supabase:", error.message);
 
-    // 2. Limpieza de UI (Lo que ya tenías)
-    document.getElementById('navbarItemsDefault').style.display = 'block';
-    document.getElementById('navbarItemsUser').style.display = 'none';
-    document.getElementById('navbarItemsAdmin').style.display = 'none';
-    document.getElementById('navbarItemsCliente').style.display = 'none';  
+    // 2. Limpieza TOTAL del almacenamiento de sesión
+    // Esto borra nombreUsuario, userRol, personaId y empresaId de un golpe
+    sessionStorage.clear(); 
 
-    // 3. Limpieza de datos de sesión locales
-    sessionStorage.clear(); // Borra todo, incluyendo nombreUsuario y rol
-    sessionStorage.setItem('nombreUsuario', 'Invitado');    
-    
+    // 3. Reestablecer valores por defecto para la navegación y UI
+    sessionStorage.setItem('nombreUsuario', 'Invitado');
+    // Es importante dejar los IDs vacíos para que los componentes no intenten cargar datos previos
+    sessionStorage.setItem('personaId', '');
+    sessionStorage.setItem('empresaId', '');
+    sessionStorage.setItem('userRol', '0'); 
+
+    // 4. Actualizar visualmente la interfaz
     document.getElementById('textUser').textContent = 'Invitado';
+    
+    // Ocultar menús privados y mostrar el de invitado
+    document.getElementById('navbarItemsDefault').style.display = 'block';
+    document.getElementById('navbarItemsUser').style.display    = 'none';
+    document.getElementById('navbarItemsAdmin').style.display   = 'none';
+    document.getElementById('navbarItemsCliente').style.display = 'none';
 
-    // 4. Limpiar campos de formularios
+    // 5. Limpiar campos físicos de los formularios de login/password
     const fields = ['username', 'password', 'newPassword', 'confirmNewPassword'];
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
 
-    // 5. Navegación y alertas
+    // 6. Colapsar el menú de Bootstrap si está abierto
     const navbarCollapse = document.getElementById('navbarText');
     if (navbarCollapse) {
-      new bootstrap.Collapse(navbarCollapse, { toggle: false }).hide();
+      const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
+      if (bsCollapse) bsCollapse.hide();
     }
     
-    getHome();
+    // 7. Redirigir al Home y notificar
+    if (typeof getHome === 'function') getHome();
     alertSMS("Sesión cerrada correctamente");
 
   } catch (err) {
     console.error("Error crítico en logout:", err);
   }
 }
+
+// ============================
 </script>
 
 
