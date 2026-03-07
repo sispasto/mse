@@ -11,7 +11,7 @@
     <div class="card-body">
       <h6 class="text-muted mb-3 fw-bold">Mis Beneficios Disponibles</h6>
       <div id="listaEmpresasBeneficio" class="d-flex gap-4 overflow-auto pb-2">
-        </div>
+      </div>
     </div>
   </div>
 
@@ -32,23 +32,13 @@ var nsRedencion = (function() {
 
   async function inicializar() {
     try {
-      // 1. Pequeña espera para asegurar que el navegador haya poblado el storage
       await new Promise(resolve => setTimeout(resolve, 500));
-
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) return mostrarError("Sesión de Supabase no encontrada.");
+      if (!session) return mostrarError("Sesión no encontrada.");
 
-      // 2. Intento de lectura robusto (probando las variantes comunes)
-      // En tu captura se ve 'personald'
-      let personaIdRaw = sessionStorage.getItem('personald') || 
-                         sessionStorage.getItem('personaId') || 
-                         sessionStorage.getItem('personald'); 
-
-      console.log("Valor recuperado de personaId:", personaIdRaw); // Para que lo veas en consola
-
-      if (!personaIdRaw) {
-          return mostrarError("No se encontró el ID de persona en el sessionStorage.");
-      }
+      // Lectura de la variable exacta en tu sessionStorage: 'personald'
+      let personaIdRaw = sessionStorage.getItem('personald'); 
+      if (!personaIdRaw) return mostrarError("No se encontró 'personald' en la sesión.");
 
       const personaId = parseInt(personaIdRaw, 10);
 
@@ -62,13 +52,13 @@ var nsRedencion = (function() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Error al consultar la Edge Function");
+      if (!res.ok) throw new Error(result.error);
 
       misBeneficios = result.data || [];
       renderEmpresas();
 
     } catch (err) {
-      console.error("Error en inicializar:", err);
+      console.error("Error:", err);
       mostrarError(err.message);
     }
   }
@@ -78,11 +68,10 @@ var nsRedencion = (function() {
     if (!contenedor) return;
 
     if (misBeneficios.length === 0) {
-      contenedor.innerHTML = '<p class="text-muted small">No tienes beneficios activos sin redimir.</p>';
+      contenedor.innerHTML = '<p class="text-muted small">No hay beneficios activos.</p>';
       return;
     }
 
-    // Identificar empresas únicas para el carrusel superior
     const empresasUnicas = [];
     const idsProcesados = new Set();
 
@@ -107,32 +96,43 @@ var nsRedencion = (function() {
     document.querySelectorAll('.empresa-item').forEach(el => el.classList.remove('active'));
     elemento.classList.add('active');
 
+    // Buscamos el beneficio para obtener el id_red
     const beneficio = misBeneficios.find(b => b.empresa_origen_id === empresaId);
     if (!beneficio) return;
 
     const contenedor = document.getElementById('contenedorServicios');
     contenedor.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div></div>';
     
-    // Los servicios se consultan directamente ya que es un catálogo de referencia
-    let { data: servicios, error } = await supabaseClient
-      .from('mse_servicios')
-      .select('*')
-      .eq('activo', true);
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
 
-    if (error) return mostrarError("Error al cargar servicios: " + error.message);
+      // Invocamos la función de consulta de servicios pasando empresa_id e id_red
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_servicios_persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          empresa_id: empresaId, 
+          id_red: beneficio.id_red // Pasamos el red_id del beneficio
+        })
+      });
 
-    // Filtrado por Red o por Empresa específica
-    const filtrados = beneficio.id_red 
-      ? servicios.filter(s => s.id_red === beneficio.id_red)
-      : servicios.filter(s => s.empresa_id === empresaId);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
 
-    renderServicios(filtrados, beneficio.id);
+      renderServicios(result.data, beneficio.id);
+
+    } catch (err) {
+      mostrarError("Error al cargar servicios: " + err.message);
+    }
   }
 
   function renderServicios(servicios, beneficioId) {
     const contenedor = document.getElementById('contenedorServicios');
-    if (!servicios.length) {
-      contenedor.innerHTML = '<p class="text-center py-5 text-muted">No hay servicios disponibles para esta empresa.</p>';
+    if (!servicios || servicios.length === 0) {
+      contenedor.innerHTML = '<p class="text-center py-5 text-muted">No hay servicios disponibles.</p>';
       return;
     }
 
@@ -153,7 +153,6 @@ var nsRedencion = (function() {
 
   async function ejecutarRedencion(beneficioId, servicioId) {
     if (!confirm("¿Deseas redimir este beneficio ahora?")) return;
-
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_redimir_beneficio`, {
@@ -165,11 +164,9 @@ var nsRedencion = (function() {
         body: JSON.stringify({ beneficio_id: beneficioId, servicio_id: servicioId })
       });
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Error en el proceso de redención");
-
+      if (!res.ok) throw new Error("Error en redención");
       alert("¡Redención exitosa!");
-      inicializar(); // Refrescar vista
+      inicializar(); 
     } catch (err) {
       alert("Error: " + err.message);
     }
