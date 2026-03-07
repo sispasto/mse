@@ -52,38 +52,41 @@ var nsRegistroBeneficio = (function () {
     const selectRed = document.getElementById("id_red");
     const btn = document.getElementById("btnGuardarBeneficio");
 
+    // 1. Usar el empresaId directamente desde sessionStorage
+    const empresaId = sessionStorage.getItem('empresaId');
+
+    if (!empresaId) {
+      console.error("No se encontró empresaId en la sesión");
+      selectRed.innerHTML = '<option value="null">Error: Sesión no válida</option>';
+      return;
+    }
+
     try {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) return;
+      // 2. Consultar las redes filtrando por el empresaId de la sesión
+      // Primero obtenemos los red_id asociados a la empresa en mse_beneficios_red
+      const { data: relaciones, error: relError } = await supabaseClient
+        .from('mse_beneficios_red')
+        .select('red_id')
+        .eq('empresa_id', empresaId);
 
-      // 1. Obtener el empresa_id del usuario logueado
-      const { data: usuario } = await supabaseClient
-        .from("mse_usuarios")
-        .select("empresa_id")
-        .eq("uuid", session.user.id)
-        .single();
+      if (relError) throw relError;
 
-      if (!usuario?.empresa_id) throw new Error("No se vinculó empresa");
+      if (!relaciones || relaciones.length === 0) {
+        selectRed.innerHTML = '<option value="null">Sin redes asignadas</option>';
+        btn.disabled = false; // Permitir envío global si aplica
+        return;
+      }
 
-      // 2. Consultar las redes donde la empresa tiene beneficios configurados
-      // Usamos la tabla mse_beneficios_red para saber en qué redes participa
-      const { data: redes, error } = await supabaseClient
+      // 3. Obtener los nombres de las redes correspondientes
+      const idsRedes = relaciones.map(r => r.red_id);
+      const { data: redes, error: redesError } = await supabaseClient
         .from("mse_redes")
-        .select(`
-          id,
-          nombre
-        `)
-        .in('id', 
-          (await supabaseClient
-            .from('mse_beneficios_red')
-            .select('red_id')
-            .eq('empresa_id', usuario.empresa_id)
-          ).data.map(r => r.red_id)
-        );
+        .select("id, nombre")
+        .in('id', idsRedes);
 
-      if (error) throw error;
+      if (redesError) throw redesError;
 
-      // 3. Llenar el Select
+      // 4. Llenar el Select
       let opciones = '<option value="null">--- Todas las Redes (Global) ---</option>';
       redes.forEach(red => {
         opciones += `<option value="${red.id}">${red.nombre}</option>`;
@@ -125,9 +128,9 @@ var nsRegistroBeneficio = (function () {
 
       alertSMS(`✅ Beneficio registrado correctamente.`);
       form.reset();
-      // Mantenemos las redes cargadas
     } catch (err) {
       alertSMS(err.message);
+    } finally {
       btn.disabled = false;
     }
   }
