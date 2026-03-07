@@ -94,20 +94,32 @@ var nsRedencion = (function() {
     const contenedor = document.getElementById('contenedorServicios');
     contenedor.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div></div>';
     
-    // Consulta de servicios según tu lógica de redes
-    let { data: servicios, error } = await supabaseClient
+    // CONSULTA OPTIMIZADA
+    let query = supabaseClient
       .from('mse_servicios')
       .select('*')
       .eq('activo', true);
 
+    // Si tu lógica dice que id_red manda:
     if (beneficio.id_red) {
-      servicios = servicios.filter(s => s.id_red === beneficio.id_red);
+        // Asegúrate de que id_red en la DB sea UUID si pasas un UUID
+        query = query.eq('id_red', beneficio.id_red);
     } else {
-      servicios = servicios.filter(s => s.empresa_id === empresaId);
+        // Si empresa_id es BIGINT, y empresaId es UUID, esto fallará.
+        // Verifica si 'empresa_id' realmente debería recibir ese UUID.
+        query = query.eq('empresa_id', empresaId); 
     }
 
-    renderServicios(servicios, beneficio.id); // Pasamos el ID del beneficio para redimir
-  }
+    const { data: servicios, error } = await query;
+
+    if (error) {
+        console.error("Error filtrando servicios:", error);
+        mostrarError("Error al cargar servicios: " + error.message);
+        return;
+    }
+
+    renderServicios(servicios, beneficio.id);
+}
 
   function renderServicios(servicios, beneficioId) {
     const contenedor = document.getElementById('contenedorServicios');
