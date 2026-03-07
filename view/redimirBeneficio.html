@@ -174,5 +174,10 @@ var nsRedencion = (function() {
   return { inicializar, seleccionarEmpresa, ejecutarRedencion };
 })();
 
-document.addEventListener("DOMContentLoaded", nsRedencion.inicializar);
+// Lógica de arranque robusta
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    nsRedencion.inicializar();
+} else {
+    document.addEventListener("DOMContentLoaded", nsRedencion.inicializar);
+}
 </script>
