@@ -1,8 +1,8 @@
 <style>
-  .empresa-item { cursor: pointer; transition: 0.3s; opacity: 0.6; }
+  .empresa-item { cursor: pointer; transition: 0.3s; opacity: 0.6; min-width: 90px; }
   .empresa-item.active { opacity: 1; transform: scale(1.1); border-bottom: 3px solid #198754; }
-  .logo-empresa { width: 60px; height: 60px; object-fit: contain; border-radius: 50%; background: #eee; }
-  .card-servicio { border: none; border-radius: 12px; transition: 0.3s; }
+  .logo-empresa { width: 60px; height: 60px; object-fit: contain; border-radius: 50%; background: #eee; border: 1px solid #ddd; }
+  .card-servicio { border: none; border-radius: 12px; transition: 0.3s; background: #fff; }
   .card-servicio:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: translateY(-5px); }
 </style>
 
@@ -24,78 +24,105 @@
 
 <script>
 var nsRedencion = (function() {
+  // Configuración necesaria dentro del scope
+  const SUPABASE_URL = "https://pmbxyfketmuzocepllvf.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtYnh5ZmtldG11em9jZXBsbHZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODE4NjUsImV4cCI6MjA3MzM1Nzg2NX0.oh9zssayvCPp-jcCohQugTx28Ds2Ts-y7Tbp-pgX1XE";
+  
+  // Asegurarnos de usar el cliente global o crearlo si no existe
+  const supabaseClient = window.supabase ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
   let misBeneficios = [];
 
-  // Dentro de nsRedencionCliente...
-
-    async function inicializar() {
+  async function inicializar() {
     try {
-        alert("Cargando tus beneficios disponibles...");
-        const { data: { session }, error: sessionErr } = await supabaseClient.auth.getSession();
-        if (sessionErr || !session) throw new Error("Sesión no válida");
+      if (!supabaseClient) {
+        console.error("Supabase no está definido.");
+        return;
+      }
 
-        // LLAMADA A LA NUEVA EDGE FUNCTION
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_beneficios_persona`, {
-        method: "POST", // O GET si lo prefieres, pero POST es estándar para enviar headers
+      const { data: { session }, error: sessionErr } = await supabaseClient.auth.getSession();
+      if (sessionErr || !session) {
+          mostrarError("Debes iniciar sesión para ver tus beneficios.");
+          return;
+      }
+
+      // Llamada a la Edge Function
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_beneficios_persona`, {
+        method: "POST",
         headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
         }
-        });
+      });
 
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        
-        // El resultado ya viene filtrado desde el servidor
-        misBeneficios = result.data; 
-        renderEmpresas();
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Error al consultar");
+
+      misBeneficios = result.data || [];
+      renderEmpresas();
 
     } catch (err) {
-        mostrarError(err.message);
+      console.error("Error en inicializar:", err);
+      mostrarError(err.message);
     }
-    }
+  }
 
   function renderEmpresas() {
     const contenedor = document.getElementById('listaEmpresasBeneficio');
+    if (!contenedor) return;
+    
+    if (misBeneficios.length === 0) {
+        contenedor.innerHTML = '<p class="text-muted small">No tienes beneficios activos sin redimir.</p>';
+        return;
+    }
+
     contenedor.innerHTML = misBeneficios.map(b => `
-      <div class="empresa-item text-center" onclick="nsRedencion.seleccionarEmpresa('${b.empresa_origen_id}', this)">
-        <img src="${b.mse_empresas.logo_url || 'assets/default-empresa.png'}" class="logo-empresa shadow-sm">
-        <div class="small mt-1 fw-bold">${b.mse_empresas.nombre_comercial}</div>
+      <div class="empresa-item text-center p-2" onclick="nsRedencion.seleccionarEmpresa('${b.empresa_origen_id}', this)">
+        <img src="${b.mse_empresas?.logo_url || 'https://via.placeholder.com/60'}" class="logo-empresa shadow-sm">
+        <div class="small mt-1 fw-bold text-truncate" style="max-width: 80px;">${b.mse_empresas?.nombre_comercial || 'Empresa'}</div>
       </div>
     `).join('');
   }
 
   async function seleccionarEmpresa(empresaId, elemento) {
-    // UI: Marcar activo
     document.querySelectorAll('.empresa-item').forEach(el => el.classList.remove('active'));
     elemento.classList.add('active');
 
     const beneficio = misBeneficios.find(b => b.empresa_origen_id === empresaId);
+    if (!beneficio) return;
+
+    const contenedor = document.getElementById('contenedorServicios');
+    contenedor.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div></div>';
     
-    // Lógica de Redes:
-    // Si id_red existe, filtramos por esa red. Si es null, buscamos en todas sus redes.
-    let query = supabase.from('mse_servicios').select('*');
-    
+    // Consulta de servicios según tu lógica de redes
+    let { data: servicios, error } = await supabaseClient
+      .from('mse_servicios')
+      .select('*')
+      .eq('activo', true);
+
     if (beneficio.id_red) {
-      query = query.eq('id_red', beneficio.id_red);
+      servicios = servicios.filter(s => s.id_red === beneficio.id_red);
     } else {
-      // Obtener todas las redes asociadas a esa empresa y filtrar servicios
-      query = query.eq('empresa_id', empresaId); 
+      servicios = servicios.filter(s => s.empresa_id === empresaId);
     }
 
-    const { data: servicios } = await query;
-    renderServicios(servicios);
+    renderServicios(servicios, beneficio.id); // Pasamos el ID del beneficio para redimir
   }
 
-  function renderServicios(servicios) {
+  function renderServicios(servicios, beneficioId) {
     const contenedor = document.getElementById('contenedorServicios');
+    if (!servicios || servicios.length === 0) {
+        contenedor.innerHTML = '<p class="text-center py-5 text-muted">No hay servicios disponibles para esta selección.</p>';
+        return;
+    }
+
     contenedor.innerHTML = servicios.map(s => `
       <div class="col-6 col-md-4 col-lg-3">
         <div class="card h-100 card-servicio shadow-sm">
-          <div class="card-body text-center">
+          <div class="card-body text-center d-flex flex-column">
             <h6 class="fw-bold mb-1">${s.nombre}</h6>
-            <p class="small text-muted mb-2">${s.descripcion || ''}</p>
-            <button class="btn btn-sm btn-success w-100" onclick="nsRedencion.redimir('${s.id}')">
+            <p class="small text-muted mb-2 flex-grow-1">${s.descripcion || ''}</p>
+            <button class="btn btn-sm btn-success w-100 mt-2" onclick="nsRedencion.ejecutarRedencion('${beneficioId}', '${s.id}')">
               Redimir
             </button>
           </div>
@@ -104,8 +131,42 @@ var nsRedencion = (function() {
     `).join('');
   }
 
-  return { inicializar, seleccionarEmpresa };
+  async function ejecutarRedencion(beneficioId, servicioId) {
+      if (!confirm("¿Deseas redimir este beneficio ahora?")) return;
+
+      try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_redimir_beneficio`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({ beneficio_id: beneficioId, servicio_id: servicioId })
+          });
+
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error);
+
+          alert("¡Redención exitosa!");
+          inicializar(); // Recargar lista
+      } catch (err) {
+          alert("Error: " + err.message);
+      }
+  }
+
+  function mostrarError(msg) {
+    const cont = document.getElementById('contenedorServicios');
+    if (cont) cont.innerHTML = `<div class="alert alert-danger mx-3">${msg}</div>`;
+  }
+
+  return { inicializar, seleccionarEmpresa, ejecutarRedencion };
 })();
 
-document.addEventListener('DOMContentLoaded', nsRedencion.inicializar);
+// Lógica de arranque robusta
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    nsRedencion.inicializar();
+} else {
+    document.addEventListener("DOMContentLoaded", nsRedencion.inicializar);
+}
 </script>
