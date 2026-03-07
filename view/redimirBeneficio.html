@@ -26,14 +26,33 @@
 var nsRedencion = (function() {
   let misBeneficios = [];
 
-  async function inicializar() {
-    const personaId = sessionStorage.getItem('personaId'); // ID del cliente logueado
-    // Llamada a la función para obtener beneficios activos
-    const res = await fetch('...'); 
-    const { beneficios } = await res.json();
-    misBeneficios = beneficios;
-    renderEmpresas();
-  }
+  // Dentro de nsRedencionCliente...
+
+    async function inicializar() {
+    try {
+        const { data: { session }, error: sessionErr } = await supabaseClient.auth.getSession();
+        if (sessionErr || !session) throw new Error("Sesión no válida");
+
+        // LLAMADA A LA NUEVA EDGE FUNCTION
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_beneficios_persona`, {
+        method: "POST", // O GET si lo prefieres, pero POST es estándar para enviar headers
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+        }
+        });
+
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        
+        // El resultado ya viene filtrado desde el servidor
+        misBeneficios = result.data; 
+        renderEmpresas();
+
+    } catch (err) {
+        mostrarError(err.message);
+    }
+    }
 
   function renderEmpresas() {
     const contenedor = document.getElementById('listaEmpresasBeneficio');
