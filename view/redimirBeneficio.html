@@ -32,17 +32,26 @@ var nsRedencion = (function() {
 
   async function inicializar() {
     try {
+      // 1. Pequeña espera para asegurar que el navegador haya poblado el storage
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) return mostrarError("Sesión de Supabase no encontrada.");
 
-      // Uso de sessionStorage según la imagen proporcionada
-      const personaIdRaw = sessionStorage.getItem('personald'); 
-      if (!personaIdRaw) return mostrarError("No se encontró 'personald' en el sessionStorage.");
+      // 2. Intento de lectura robusto (probando las variantes comunes)
+      // En tu captura se ve 'personald'
+      let personaIdRaw = sessionStorage.getItem('personald') || 
+                         sessionStorage.getItem('personaId') || 
+                         sessionStorage.getItem('personald'); 
 
-      // Conversión explícita a número para evitar el error 'invalid input syntax for type bigint'
+      console.log("Valor recuperado de personaId:", personaIdRaw); // Para que lo veas en consola
+
+      if (!personaIdRaw) {
+          return mostrarError("No se encontró el ID de persona en el sessionStorage.");
+      }
+
       const personaId = parseInt(personaIdRaw, 10);
 
-      // Consulta exclusiva mediante Edge Function
       const res = await fetch(`${SUPABASE_URL}/functions/v1/mse_consultar_beneficios_persona`, {
         method: "POST",
         headers: {
