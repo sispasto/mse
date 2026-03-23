@@ -89,43 +89,29 @@
 </div>
 
 <!-- RESULTADOS -->
-<div class="container mt-5">
-  <h4 class="text-start mb-3">Resultados de búsqueda</h4>
+<div class="row g-4" id="resultados"></div>
 
-  <div class="row g-4" id="resultados">
-    <!-- EJEMPLO CARD -->
-    <div class="col-md-3">
-      <div class="card shadow-sm card-servicio h-100">
-        <div class="card-body text-start">
-          <img src="/mse/assets/logo1.png" style="height: 40px" />
-          <h5 class="mt-2">Servicios Tech Pasto</h5>
-          <p class="mb-1">Instalación de Office</p>
-          <small>⭐ 4.8 · Pasto</small>
-          <div class="mt-3 d-flex justify-content-between">
-            <button class="btn btn-outline-primary btn-sm">Ver perfil</button>
-            <button class="btn btn-success btn-sm">Contactar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 <script>
   document.getElementById("buscador").addEventListener("keyup", () => {
     nsConsultarServicios.buscarServicio();
   });
 
   var nsConsultarServicios = (function () {
-    // 🔍 BUSCAR SERVICIOS
     async function buscarServicio() {
-      const texto = document.getElementById("buscador").value;
+      const texto = document.getElementById("buscador").value.trim();
+      const contenedor = document.getElementById("resultados");
+
+      // 👉 SI ESTÁ VACÍO → NO MOSTRAR NADA
+      if (texto === "") {
+        contenedor.innerHTML = "";
+        return;
+      }
 
       try {
         const {
           data: { session },
         } = await supabaseClient.auth.getSession();
 
-        // 🔐 VALIDAR SESIÓN
         if (!session) {
           alert("Debes iniciar sesión");
           return;
@@ -157,35 +143,33 @@
       }
     }
 
-    // 🎨 PINTAR SERVICIOS (puedes reutilizar el tuyo)
     function pintarServicios(servicios) {
-      const contenedor = document.getElementById("contenedorServicios");
+      const contenedor = document.getElementById("resultados");
 
       if (!servicios || servicios.length === 0) {
         contenedor.innerHTML =
-          '<p class="text-center py-5 text-muted">No hay servicios disponibles.</p>';
+          '<p class="text-center py-5 text-muted">No hay resultados</p>';
         return;
       }
 
       contenedor.innerHTML = servicios
         .map(
           (s) => `
-      <div class="col-6 col-md-4 col-lg-3">
-        <div class="card h-100 card-servicio shadow-sm">
-          <div class="card-body text-center d-flex flex-column align-items-center">
+      <div class="col-md-3">
+        <div class="card shadow-sm card-servicio h-100">
+          <div class="card-body text-start">
 
-            <div class="mb-3" style="height:60px;">
-              <img src="${s.logo || ""}" style="max-height:60px; object-fit:contain;">
-            </div>
+            <img src="${s.logo || "/mse/assets/logo1.png"}" style="height:40px">
 
-            <h6 class="fw-bold mb-1">${s.nombre}</h6>
+            <h5 class="mt-2">${s.empresa || "Empresa"}</h5>
 
-            <p class="small text-muted mb-2">
-              ${s.descripcion || ""}
-            </p>
+            <p class="mb-1">${s.nombre}</p>
 
-            <div class="badge bg-light text-success mb-2">
-              ${formatearPrecio(s.precio)}
+            <small>⭐ ${s.rating || "4.5"} · ${s.ciudad || "Pasto"}</small>
+
+            <div class="mt-3 d-flex justify-content-between">
+              <button class="btn btn-outline-primary btn-sm">Ver perfil</button>
+              <button class="btn btn-success btn-sm">Contactar</button>
             </div>
 
           </div>
@@ -196,14 +180,6 @@
         .join("");
     }
 
-    function formatearPrecio(valor) {
-      return new Intl.NumberFormat("es-CO", {
-        style: "currency",
-        currency: "COP",
-      }).format(valor || 0);
-    }
-
-    // 📦 EXPORTAR FUNCIONES
     return {
       buscarServicio,
     };
