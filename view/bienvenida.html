@@ -13,6 +13,7 @@
   .categoria {
     cursor: pointer;
     transition: 0.3s;
+    min-width: 90px;
   }
 
   .categoria:hover {
@@ -173,41 +174,43 @@
       contenedor.innerHTML = servicios
         .map(
           (s) => `
-        <div class="col-6 col-md-4 col-lg-3">
-          <div class="card h-100 card-servicio shadow-sm p-3 text-center">
+    <div class="col-6 col-md-3 col-lg-2">
+      <div class="card card-servicio shadow-sm p-2 text-center h-100">
 
-            <!-- ICONO -->
-            <div class="mb-3">
-              <img src="${s.logo || "/mse/assets/logo1.png"}"
-                   style="height:60px; object-fit:contain;">
-            </div>
-
-            <!-- NOMBRE -->
-            <h6 class="fw-bold">${s.nombre}</h6>
-
-            <!-- DESCRIPCIÓN -->
-            <p class="small text-muted mb-2">
-              ${s.descripcion || ""}
-            </p>
-
-            <!-- ⭐ ESTRELLAS (mock por ahora) -->
-            <div class="mb-2 text-warning">
-              ⭐⭐⭐⭐☆
-            </div>
-
-            <!-- 💰 PRECIO BASE -->
-            <div class="fw-bold text-success mb-3">
-              ${formatearPrecio(s.precio)}
-            </div>
-
-            <!-- BOTÓN -->
-            <button class="btn btn-success btn-sm w-100">
-              Solicitar
-            </button>
-
-          </div>
+        <!-- ICONO -->
+        <div class="mb-2">
+          <img src="${s.logo || "/mse/assets/logo1.png"}"
+               style="height:40px; object-fit:contain;">
         </div>
-      `,
+
+        <!-- NOMBRE -->
+        <h6 class="fw-bold mb-1" style="font-size: 13px;">
+          ${s.nombre}
+        </h6>
+
+        <!-- DESCRIPCIÓN -->
+        <p class="small text-muted mb-1" style="font-size: 11px;">
+          ${s.descripcion || ""}
+        </p>
+
+        <!-- ⭐ -->
+        <div class="text-warning mb-1" style="font-size: 12px;">
+          ⭐⭐⭐⭐☆
+        </div>
+
+        <!-- 💰 -->
+        <div class="fw-bold text-success mb-2" style="font-size: 13px;">
+          ${formatearPrecio(s.precio)}
+        </div>
+
+        <!-- BOTÓN -->
+        <button class="btn btn-success btn-sm w-100 py-1" style="font-size: 12px;">
+          Solicitar
+        </button>
+
+      </div>
+    </div>
+  `,
         )
         .join("");
     }
