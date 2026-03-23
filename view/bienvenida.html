@@ -51,7 +51,12 @@
       class="form-control"
       placeholder="Buscar servicio... (ej: manicure, instalar Office, electricidad)"
     />
-    <button class="btn btn-primary" onclick="buscarServicio()">Buscar</button>
+    <button
+      class="btn btn-primary"
+      onclick="nsConsultarServicios.buscarServicio()"
+    >
+      Buscar
+    </button>
   </div>
 
   <!-- CATEGORÍAS -->
@@ -105,3 +110,102 @@
     </div>
   </div>
 </div>
+<script>
+  document.getElementById("buscador").addEventListener("keyup", () => {
+    nsConsultarServicios.buscarServicio();
+  });
+
+  var nsConsultarServicios = (function () {
+    // 🔍 BUSCAR SERVICIOS
+    async function buscarServicio() {
+      const texto = document.getElementById("buscador").value;
+
+      try {
+        const {
+          data: { session },
+        } = await supabaseClient.auth.getSession();
+
+        // 🔐 VALIDAR SESIÓN
+        if (!session) {
+          alert("Debes iniciar sesión");
+          return;
+        }
+
+        const response = await fetch(
+          `${SUPABASE_URL}/functions/v1/mse_consultar_servicios`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              search: texto,
+            }),
+          },
+        );
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          pintarServicios(result.servicios);
+        } else {
+          console.error(result.message);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+      }
+    }
+
+    // 🎨 PINTAR SERVICIOS (puedes reutilizar el tuyo)
+    function pintarServicios(servicios) {
+      const contenedor = document.getElementById("contenedorServicios");
+
+      if (!servicios || servicios.length === 0) {
+        contenedor.innerHTML =
+          '<p class="text-center py-5 text-muted">No hay servicios disponibles.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = servicios
+        .map(
+          (s) => `
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="card h-100 card-servicio shadow-sm">
+          <div class="card-body text-center d-flex flex-column align-items-center">
+
+            <div class="mb-3" style="height:60px;">
+              <img src="${s.logo || ""}" style="max-height:60px; object-fit:contain;">
+            </div>
+
+            <h6 class="fw-bold mb-1">${s.nombre}</h6>
+
+            <p class="small text-muted mb-2">
+              ${s.descripcion || ""}
+            </p>
+
+            <div class="badge bg-light text-success mb-2">
+              ${formatearPrecio(s.precio)}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    `,
+        )
+        .join("");
+    }
+
+    function formatearPrecio(valor) {
+      return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+      }).format(valor || 0);
+    }
+
+    // 📦 EXPORTAR FUNCIONES
+    return {
+      buscarServicio,
+    };
+  })();
+</script>
