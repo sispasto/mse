@@ -92,18 +92,22 @@
 <div class="row g-4" id="resultados"></div>
 
 <script>
+  // 🚫 INICIAR VACÍO (sin resultados)
+  document.getElementById("resultados").innerHTML = "";
+
+  // 🔎 BUSCAR AL ESCRIBIR
   document.getElementById("buscador").addEventListener("keyup", () => {
     nsConsultarServicios.buscarServicio();
   });
 
   var nsConsultarServicios = (function () {
+    // 🔍 BUSCAR SERVICIOS
     async function buscarServicio() {
       const texto = document.getElementById("buscador").value.trim();
-      const contenedor = document.getElementById("resultados");
 
       // 👉 SI ESTÁ VACÍO → NO MOSTRAR NADA
-      if (texto === "") {
-        contenedor.innerHTML = "";
+      if (!texto) {
+        document.getElementById("resultados").innerHTML = "";
         return;
       }
 
@@ -125,9 +129,7 @@
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({
-              search: texto,
-            }),
+            body: JSON.stringify({ search: texto }),
           },
         );
 
@@ -143,41 +145,63 @@
       }
     }
 
+    // 🎨 PINTAR SERVICIOS (ESTILO COMO TU IMAGEN)
     function pintarServicios(servicios) {
       const contenedor = document.getElementById("resultados");
 
       if (!servicios || servicios.length === 0) {
         contenedor.innerHTML =
-          '<p class="text-center py-5 text-muted">No hay resultados</p>';
+          '<p class="text-center py-5 text-muted">No se encontraron servicios</p>';
         return;
       }
 
       contenedor.innerHTML = servicios
         .map(
           (s) => `
-      <div class="col-md-3">
-        <div class="card shadow-sm card-servicio h-100">
-          <div class="card-body text-start">
+        <div class="col-6 col-md-4 col-lg-3">
+          <div class="card h-100 card-servicio shadow-sm p-3 text-center">
 
-            <img src="${s.logo || "/mse/assets/logo1.png"}" style="height:40px">
-
-            <h5 class="mt-2">${s.empresa || "Empresa"}</h5>
-
-            <p class="mb-1">${s.nombre}</p>
-
-            <small>⭐ ${s.rating || "4.5"} · ${s.ciudad || "Pasto"}</small>
-
-            <div class="mt-3 d-flex justify-content-between">
-              <button class="btn btn-outline-primary btn-sm">Ver perfil</button>
-              <button class="btn btn-success btn-sm">Contactar</button>
+            <!-- ICONO -->
+            <div class="mb-3">
+              <img src="${s.logo || "/mse/assets/logo1.png"}"
+                   style="height:60px; object-fit:contain;">
             </div>
+
+            <!-- NOMBRE -->
+            <h6 class="fw-bold">${s.nombre}</h6>
+
+            <!-- DESCRIPCIÓN -->
+            <p class="small text-muted mb-2">
+              ${s.descripcion || ""}
+            </p>
+
+            <!-- ⭐ ESTRELLAS (mock por ahora) -->
+            <div class="mb-2 text-warning">
+              ⭐⭐⭐⭐☆
+            </div>
+
+            <!-- 💰 PRECIO BASE -->
+            <div class="fw-bold text-success mb-3">
+              ${formatearPrecio(s.precio_base)}
+            </div>
+
+            <!-- BOTÓN -->
+            <button class="btn btn-success btn-sm w-100">
+              Solicitar
+            </button>
 
           </div>
         </div>
-      </div>
-    `,
+      `,
         )
         .join("");
+    }
+
+    function formatearPrecio(valor) {
+      return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+      }).format(valor || 0);
     }
 
     return {
